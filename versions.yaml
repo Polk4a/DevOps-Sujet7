@@ -1,0 +1,7 @@
+kubernetes: "v1.30"
+distribution: "k3s"
+kyverno: "v1.12"
+cosign: "v2.4"
+trivy: "v0.56"
+syft: "v1.14"
+os_base: "ubuntu-22.04"
