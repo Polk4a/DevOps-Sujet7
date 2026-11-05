@@ -1,0 +1,50 @@
+# Spike S4 (brouillon, pas la politique finale de J3) - API CEL de Kyverno 1.19 (policies.kyverno.io/v1).
+# Verifie que toute image d'un pod du namespace demo :
+#   1. vient du registre du projet (sinon une image docker.io echapperait a la verification) ;
+#   2. porte une signature Cosign valide pour la cle du projet.
+# Conteneurs ET conteneurs d'initialisation (pre-test CLI de B, spike S3 du 2026-11-05).
+# __COSIGN_PUB__ est remplace par le contenu de cosign.pub via render.sh.
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: s4-verify-signature
+spec:
+  validationActions: [Audit]          # passer a [Deny] une fois le comportement observe
+  failurePolicy: Fail
+  webhookConfiguration:
+    timeoutSeconds: 15
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['']
+        apiVersions: ['v1']
+        operations: ['CREATE', 'UPDATE']
+        resources: ['pods']
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: demo
+  matchImageReferences:
+    - glob: '*'                        # toutes les images : NE PAS restreindre au registre, sinon la regle 1
+                                       # ne s'applique plus et une image docker.io est admise (teste dans S3)
+  validationConfigurations:
+    mutateDigest: true
+    verifyDigest: true
+    required: true
+  attestors:
+    - name: cosign
+      cosign:
+        key:
+          data: |
+__COSIGN_PUB__
+        ctlog:
+          insecureIgnoreTlog: true     # signature par cle statique sans Rekor (labo isole) : a justifier dans ADR-003
+          insecureIgnoreSCT: true
+  validations:
+    - expression: >-
+        (images.containers + (has(images.initContainers) ? images.initContainers : []))
+          .all(image, image.startsWith('registry.s7.internal/s7/'))
+      message: "image refusee : seules les images de registry.s7.internal/s7/ sont autorisees"
+    - expression: >-
+        (images.containers + (has(images.initContainers) ? images.initContainers : []))
+          .filter(image, image.startsWith('registry.s7.internal/s7/'))
+          .map(image, verifyImageSignatures(image, [attestors.cosign])).all(e, e > 0)
+      message: "image refusee : signature Cosign absente ou invalide pour security/cosign/cosign.pub"

@@ -1,0 +1,46 @@
+# Spike S4 (brouillon) - ancienne API ClusterPolicy (kyverno.io/v1), depreciee en 1.19, pour comparaison.
+# kubectl apply affiche un avertissement de depreciation : a capturer comme preuve pour l'ADR-004.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: s4-legacy-verify-signature
+spec:
+  background: false
+  failurePolicy: Fail
+  webhookTimeoutSeconds: 15
+  rules:
+    - name: registre-autorise
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [demo]
+      validate:
+        failureAction: Audit
+        message: "image refusee : seules les images de registry.s7.internal/s7/ sont autorisees"
+        pattern:
+          spec:
+            containers:
+              - image: "registry.s7.internal/s7/*"
+    - name: signature-cosign
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [demo]
+      verifyImages:
+        - imageReferences:
+            - "registry.s7.internal/s7/*"
+          failureAction: Audit
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+__COSIGN_PUB__
+                    rekor:
+                      ignoreTlog: true
+                    ctlog:
+                      ignoreSCT: true

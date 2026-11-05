@@ -1,7 +1,40 @@
-kubernetes: "v1.30"
-distribution: "k3s"
-kyverno: "v1.12"
-cosign: "v2.4"
-trivy: "v0.56"
-syft: "v1.14"
-os_base: "ubuntu-22.04"
+# Versions figées. Source unique : les scripts (Makefile, infra/, CI) doivent lire ce fichier.
+# Toute modification passe par une pull request relue + une ligne dans l'ADR concerné.
+# Jamais de version flottante (latest, main, stable) : voir scripts/check-j1.sh
+# Délai de 7 jours avant d'adopter une nouvelle version (ADR-002, règle 6), sauf correctif de sécurité qui nous concerne.
+
+os_base: "ubuntu-24.04"            # image cloud LTS, prise dans un répertoire daté et contrôlée par SHA256SUMS (ADR-001)
+
+# --- Étudiant A (relevé le 2026-11-05) ---
+k3s: "v1.35.9+k3s1"                # Kubernetes 1.35.9, publiée le 2026-09-30 (docs.k3s.io/release-notes/v1.35.X).
+                                   # PAS de 1.36 : Kyverno 1.19 couvre Kubernetes 1.33 à 1.35 (ADR-001).
+kyverno_app: "v1.19.2"             # publiée le 2026-10-21. Ne pas passer en 1.20 sans ADR : retrait de ClusterPolicy (ADR-004)
+kyverno_chart: "3.9.2"             # chart Helm correspondant à v1.19.2 (charts/kyverno/Chart.yaml du tag v1.19.2)
+
+# --- Étudiant B (relevé le 2026-11-05 sur les releases GitHub officielles) ---
+cosign: "v3.1.4"                   # publiée le 2026-10-20 ; repli (ADR-003) : v2.6.5 (2026-08-06)
+trivy: "v0.76.1"                   # publiée le 2026-10-21 ; v0.76.2 (2026-11-05) à réévaluer le 2026-11-12.
+                                   # JAMAIS v0.69.4, v0.69.5, v0.69.6 (compromises en mars 2026)
+syft: "v1.55.0"                    # publiée le 2026-10-19 ; v1.56.0 (2026-11-02) à réévaluer le 2026-11-09
+crane: "v0.22.1"                   # go-containerregistry, publiée le 2026-09-04 : push de l'archive OCI scannée (ADR-002)
+registry: "zot v2.1.22"            # Zot, binaire zot-linux-amd64-minimal en service systemd (ADR-002), publiée le 2026-10-06 ;
+                                   # v2.1.23 (2026-11-02) à réévaluer. Plan B : Distribution v3.1.2
+github_runner: "v2.338.2"          # actions/runner, publiée le 2026-10-26. EXCEPTION au gel : GitHub refuse les jobs
+                                   # d'un runner pas mis à jour 30 jours après la version suivante
+
+# Actions GitHub : SHA de commit COMPLET, jamais un tag (les tags peuvent être redirigés).
+actions:
+  checkout: "3d3c42e5aac5ba805825da76410c181273ba90b1"   # actions/checkout v7.0.1 (2026-07-17), node24
+
+# Sommes SHA-256 des fichiers téléchargés, recopiées des fichiers de sommes des releases
+# (k3s : contrôlée à l'installation par sha256sum-amd64.txt de la release).
+checksums:
+  cosign: "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa"         # cosign-linux-amd64 (cosign_checksums.txt)
+  cosign_repli: "c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644"   # cosign-linux-amd64 v2.6.5
+  trivy: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"          # trivy_0.76.1_Linux-64bit.tar.gz
+  syft: "bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d"           # syft_1.55.0_linux_amd64.tar.gz
+  crane: "0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0"          # go-containerregistry_Linux_x86_64.tar.gz
+  zot: "a053169f97b4ceaa051e054d53971799188a398cb36acbaf5e08622ec8664c44"            # zot-linux-amd64-minimal (checksums.sha256.txt)
+  registry_repli: "40df2224d410f72ae425c3371873b078bbdbda3b8b612be9571f0e6751f3acc8" # registry_3.1.2_linux_amd64.tar.gz
+  github_runner: "baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40"  # actions-runner-linux-x64-2.338.2.tar.gz
+                                   # somme calculée au téléchargement (pas de fichier de sommes) : à recouper avec la page de la release
