@@ -1,0 +1,8 @@
+ok         structure du depot
+ok         aucun marqueur restant
+ok         20 risques documentes
+ok         versions.yaml sans version flottante
+ok         aucune cle privee detectee
+ok         gitleaks : rien detecte
+
+J1 : controle automatique OK (il ne remplace pas la relecture croisee)
