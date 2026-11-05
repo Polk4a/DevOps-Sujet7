@@ -1,0 +1,31 @@
+{
+  "distSpecVersion": "1.1.1",
+  "storage": {
+    "rootDirectory": "/var/lib/zot",
+    "gc": true,
+    "gcDelay": "1h",
+    "gcInterval": "24h"
+  },
+  "http": {
+    "address": "0.0.0.0",
+    "port": "443",
+    "tls": {
+      "cert": "/etc/zot/registry.crt",
+      "key": "/etc/zot/registry.key"
+    },
+    "auth": {
+      "htpasswd": { "path": "/etc/zot/htpasswd" }
+    },
+    "accessControl": {
+      "repositories": {
+        "s7/**": {
+          "anonymousPolicy": ["read"],
+          "policies": [
+            { "users": ["ci"], "actions": ["read", "create", "update"] }
+          ]
+        }
+      }
+    }
+  },
+  "log": { "level": "info" }
+}
