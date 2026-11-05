@@ -26,7 +26,21 @@ Faits établis au 05/11/2026 :
   charge Kubernetes 1.33 à 1.35, et seule la dernière version mineure reçoit les correctifs communautaires
   ([endoflife.date](https://endoflife.date/kyverno)).
 
-Faits mesurés : [A COMPLETER : résultat du spike S4 (pods admis et refusés, messages de refus obtenus avec chaque API, avertissement de dépréciation capturé)]
+Faits mesurés :
+
+- **Pré-test en CLI** (`kyverno apply`, Kyverno CLI v1.19.2, fait par B pendant le spike S3 le 05/11/2026, avec de
+  vraies signatures Cosign 3.1.4 dans un registre Zot) : la politique `ImageValidatingPolicy` de S4 admet le pod à
+  l'image signée et refuse les images non signées avec son message. Trois points ont été corrigés ou relevés :
+  - les conteneurs d'initialisation n'étaient refusés que par `required: true`, avec un message générique. La
+    politique couvre désormais `initContainers` ;
+  - restreindre `matchImageReferences` au registre du projet désactive la règle d'origine (une image `docker.io`
+    est alors admise) : il faut garder `glob: '*'` ;
+  - en CLI, une image référencée par tag est refusée (`does not have a digest`), car la réécriture par digest n'a
+    lieu que dans le webhook.
+
+  Détails : [S3](../spikes/S3.md).
+- **Spike S4 sur le cluster** (webhook, mode Deny, comparaison avec `ClusterPolicy`, avertissement de dépréciation) :
+  prévu dès que le cluster de S1 existe. Ses résultats seront reportés ici.
 
 ## Critères
 

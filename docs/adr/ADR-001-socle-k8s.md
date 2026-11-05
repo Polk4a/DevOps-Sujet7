@@ -22,7 +22,14 @@ Contraintes :
 - **Cohérence avec le sujet** : le socle fait partie de la chaîne d'approvisionnement. Un binaire ou un script
   d'installation téléchargé sans vérification contredirait ce que le projet démontre.
 
-Faits mesurés : [A COMPLETER : résultat du spike S1 (durée de création d'une VM et d'installation de k3s, RAM au repos) et `kvm-ok` relevé dans l'inventaire]
+Faits mesurés :
+
+- **Inventaire** (`laptopdlamort`, 05/11/2026) : `/dev/kvm` présent, 24 drapeaux vmx, libvirt et virt-install
+  installés ; 15 Gi de RAM, donc profil réduit à 3 VM ; 26 Go libres sur `/` mais deux NVMe disponibles ; la plage
+  192.168.100.0/24 est déjà utilisée par `br0` et doit être libérée ou changée avant J2. `kvm-ok` n'a pas pu être
+  lancé sans mot de passe `sudo`.
+- **Spike S1** (création de VM et installation de k3s chronométrées) : pas encore réalisé, prévu avant J2. Ses mesures
+  seront reportées ici.
 
 ## Critères
 

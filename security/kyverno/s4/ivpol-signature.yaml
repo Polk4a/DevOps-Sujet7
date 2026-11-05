@@ -2,6 +2,7 @@
 # Verifie que toute image d'un pod du namespace demo :
 #   1. vient du registre du projet (sinon une image docker.io echapperait a la verification) ;
 #   2. porte une signature Cosign valide pour la cle du projet.
+# Conteneurs ET conteneurs d'initialisation (pre-test CLI de B, spike S3 du 2026-11-05).
 # __COSIGN_PUB__ est remplace par le contenu de cosign.pub via render.sh.
 apiVersion: policies.kyverno.io/v1
 kind: ImageValidatingPolicy
@@ -22,7 +23,8 @@ spec:
       matchLabels:
         kubernetes.io/metadata.name: demo
   matchImageReferences:
-    - glob: '*'                        # toutes les images : l'origine est verifiee par la regle 1
+    - glob: '*'                        # toutes les images : NE PAS restreindre au registre, sinon la regle 1
+                                       # ne s'applique plus et une image docker.io est admise (teste dans S3)
   validationConfigurations:
     mutateDigest: true
     verifyDigest: true
@@ -38,8 +40,11 @@ __COSIGN_PUB__
           insecureIgnoreSCT: true
   validations:
     - expression: >-
-        images.containers.all(image, image.startsWith('registry.s7.internal/s7/'))
+        (images.containers + (has(images.initContainers) ? images.initContainers : []))
+          .all(image, image.startsWith('registry.s7.internal/s7/'))
       message: "image refusee : seules les images de registry.s7.internal/s7/ sont autorisees"
     - expression: >-
-        images.containers.map(image, verifyImageSignatures(image, [attestors.cosign])).all(e, e > 0)
+        (images.containers + (has(images.initContainers) ? images.initContainers : []))
+          .filter(image, image.startsWith('registry.s7.internal/s7/'))
+          .map(image, verifyImageSignatures(image, [attestors.cosign])).all(e, e > 0)
       message: "image refusee : signature Cosign absente ou invalide pour security/cosign/cosign.pub"

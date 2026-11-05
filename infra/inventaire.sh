@@ -19,11 +19,12 @@ disks=$(lsblk -d -n -o NAME,SIZE,ROTA,TYPE 2>/dev/null | awk '$4=="disk"{printf 
 [ -e /dev/kvm ] && devkvm=oui || devkvm=non
 if command -v kvm-ok >/dev/null 2>&1; then
   kvmok=$(sudo -n kvm-ok 2>&1 | tail -1 || true)
+  case "$kvmok" in *password*) kvmok="non teste (relancer avec sudo -v avant le script)";; esac
 else
   kvmok="kvm-ok absent (sudo apt-get install -y cpu-checker)"
 fi
 have() { command -v "$1" >/dev/null 2>&1 && echo oui || echo non; }
-libvirtd=$(systemctl is-active libvirtd 2>/dev/null || echo inactif)
+libvirtd=$(systemctl is-active libvirtd 2>/dev/null | head -1); libvirtd=${libvirtd:-absent}   # is-active ecrit deja "inactive"
 sudo -n true 2>/dev/null && sudo_ok=oui || sudo_ok="non (ou mot de passe demande)"
 ipv4=$(ip -4 -br addr 2>/dev/null | awk '$1!="lo"{print $1" "$3}' | paste -sd ';' -)
 gw=$(ip route 2>/dev/null | awk '/^default/{print $3" via "$5; exit}')
