@@ -1,0 +1,37 @@
+# Spike S4 - quatre pods de test dans le namespace demo. Remplacer les references avant usage.
+# Attendu en mode Deny : pod-signe admis ; pod-non-signe, pod-autre-registre et pod-init-non-signe refuses
+# avec le message de la politique. Si pod-init-non-signe est admis, la politique ne couvre pas les initContainers (R16).
+apiVersion: v1
+kind: Pod
+metadata: {name: pod-signe, namespace: demo}
+spec:
+  containers:
+    - name: app
+      image: registry.s7.internal/s7/demo-app:spike-signe        # image signee avec spike.key
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: pod-non-signe, namespace: demo}
+spec:
+  containers:
+    - name: app
+      image: registry.s7.internal/s7/demo-app:spike-non-signe    # meme registre, jamais signee
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: pod-autre-registre, namespace: demo}
+spec:
+  containers:
+    - name: app
+      image: docker.io/library/nginx:1.27                        # hors registre du projet
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: pod-init-non-signe, namespace: demo}
+spec:
+  initContainers:
+    - name: init
+      image: registry.s7.internal/s7/demo-app:spike-non-signe    # conteneur d'initialisation non signe
+  containers:
+    - name: app
+      image: registry.s7.internal/s7/demo-app:spike-signe

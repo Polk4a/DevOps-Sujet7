@@ -1,0 +1,32 @@
+# Secrets : JAMAIS dans Git (exigence ENG-2)
+cosign.key
+*.key
+*.pem
+!security/ca/ca.crt
+.env
+.env.*
+*.kubeconfig
+kubeconfig*
+k3s.yaml
+id_rsa*
+id_ed25519*
+htpasswd
+*.htpasswd
+# Cles privees Cosign (cosign.key, deja couverte par *.key) et CA privee (ca.key) : jamais versionnees
+
+# Etats et caches d'outils
+*.tfstate
+*.tfstate.*
+.terraform/
+.pre-commit-cache/
+__pycache__/
+*.pyc
+
+# Resultats temporaires (les CSV bruts de bench/ restent versionnes)
+*.tmp
+*.swp
+.DS_Store
+
+# Sorties locales de la CI (archives OCI, SBOM et resultats de scan des essais)
+build/
+.trivy-cache/

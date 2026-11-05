@@ -1,7 +1,28 @@
-kubernetes: "v1.30"
-distribution: "k3s"
-kyverno: "v1.12"
-cosign: "v2.4"
-trivy: "v0.56"
-syft: "v1.14"
-os_base: "ubuntu-22.04"
+# Versions figées. Source unique : les scripts (Makefile, infra/, CI) doivent lire ce fichier.
+# Toute modification passe par une pull request relue + une ligne dans l'ADR concerné.
+# Jamais de version flottante (latest, main, stable) : voir scripts/check-j1.sh
+
+os_base: "ubuntu-24.04"            # image cloud LTS, prise dans un répertoire daté et contrôlée par SHA256SUMS (ADR-001)
+
+# --- Étudiant A (relevé le 2026-11-05) ---
+k3s: "v1.35.9+k3s1"                # Kubernetes 1.35.9, publiée le 2026-09-30 (docs.k3s.io/release-notes/v1.35.X).
+                                   # PAS de 1.36 : Kyverno 1.19 couvre Kubernetes 1.33 à 1.35 (ADR-001).
+kyverno_app: "v1.19.2"             # publiée le 2026-10-21. Ne pas passer en 1.20 sans ADR : retrait de ClusterPolicy (ADR-004)
+kyverno_chart: "3.9.2"             # chart Helm correspondant à v1.19.2 (charts/kyverno/Chart.yaml du tag v1.19.2)
+
+# --- Étudiant B (à relever) ---
+cosign: "v3.1.3"                   # repli (ADR-003) : v2.6.5
+trivy: "v0.76.1"                   # JAMAIS v0.69.4, v0.69.5, v0.69.6 (compromises en mars 2026)
+syft: "v1.52.0"
+registry_image: "A RELEVER"        # Distribution 3.x ou Zot : tag exact ET digest sha256
+github_runner: "A RELEVER"
+
+# Actions GitHub : SHA de commit COMPLET, jamais un tag (les tags peuvent être redirigés).
+actions:
+  checkout: "A RELEVER"
+
+# Sommes SHA-256 des binaires téléchargés (k3s : contrôlée à l'installation par sha256sum-amd64.txt de la release)
+checksums:
+  cosign: "A RELEVER"
+  trivy: "A RELEVER"
+  syft: "A RELEVER"
