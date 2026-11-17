@@ -1,149 +1,180 @@
 # ADR-001 : Socle de virtualisation et distribution Kubernetes
 
-- **Date** : 2026-11-05
+- **Date** : 2026-11-05 (mise à jour le 2026-11-06)
 - **Statut** : proposée <!-- passer à « validée » après relecture et approbation de la PR par l'étudiant B -->
 - **Auteur** : Étudiant A — **Relecteur** : Étudiant B
 - **Spikes liés** : [S1](../spikes/S1.md) (VM + k3s), [S4](../spikes/S4.md) (Kyverno sur ce cluster)
 
+## Sommaire
+
+1. [Contexte](#contexte) : le problème et nos contraintes (temps, machines, compatibilité)
+2. [Critères](#critères) : ce qui compte pour choisir, avec un poids
+3. [Options considérées](#options-considérées)
+   - [Option 1 : VM KVM/libvirt + cloud-init + k3s](#option-1--vm-kvmlibvirt--cloud-init--k3s)
+   - [Option 2 : VM KVM/libvirt + cloud-init + kubeadm](#option-2--vm-kvmlibvirt--cloud-init--kubeadm)
+   - [Option 3 : OpenStack all-in-one + kubeadm](#option-3--openstack-all-in-one--kubeadm)
+   - [Option 4 : k3d ou kind](#option-4--k3d-ou-kind-nœuds-kubernetes-dans-des-conteneurs)
+4. [Comparaison](#comparaison) : les options notées critère par critère
+5. [Décision](#décision) : VM + k3s v1.35.9, et pourquoi
+6. [Conséquences](#conséquences) : ce que l'on gagne, ce que l'on perd, ce qu'il faut surveiller
+7. [Plan B](#plan-b) : signes d'alerte et solutions de repli
+8. [Questions que pourrait poser le jury](#questions-que-pourrait-poser-le-jury)
+
 ## Contexte
 
-Le projet a besoin d'un cluster Kubernetes installé par nos soins, sur lequel Kyverno refusera les images non signées
-(J3). Ce cluster doit être détruit puis reconstruit par script au jalon J2, puis par l'autre membre du binôme au jalon
-J5, chronométré.
+Nous devons installer nous-mêmes un cluster Kubernetes. Sur ce cluster, Kyverno refusera les images non signées
+(J3). Le cluster doit pouvoir être détruit puis recréé par script au jalon J2. Le 5/02 (reproductibilité), l'autre
+membre du binôme devra le recréer seul, en mesurant le temps.
 
 Contraintes :
 
-- **Temps** : avant l'oral et le jalon J2 du 20/11, il n'existe que deux créneaux officiels de 50 min (17 et 18/11).
-  L'installation doit être courte et sans étape manuelle cachée.
-- **Ressources** : machines de la salle SA2.22, relevées dans [docs/inventaire.md](../inventaire.md). Le cluster
-  partage la machine avec la VM de CI et le registre (ADR-002).
-- **Compatibilité** : Kyverno 1.19 (ADR-004) prend en charge Kubernetes **1.33 à 1.35**, d'après
-  [endoflife.date](https://endoflife.date/kyverno). La dernière ligne de k3s (1.36) est donc exclue.
-- **Cohérence avec le sujet** : le socle fait partie de la chaîne d'approvisionnement. Un binaire ou un script
-  d'installation téléchargé sans vérification contredirait ce que le projet démontre.
+- **Temps** : avant J2 (20/11, 18h00), nous n'avons que deux créneaux officiels de 50 min (17 et 18/11) et la
+  journée du 20/11, qui est aussi le jour de l'échéance. L'installation doit donc être rapide et entièrement écrite
+  dans des scripts, sans étape à faire à la main.
+- **Machines** : pour l'instant, nous utilisons le portable de l'étudiant B (`laptopdlamort`), seule machine relevée
+  au 05/11 (voir [docs/inventaire.md](../inventaire.md)). Plus tard, nous passerons sur les machines de l'université
+  (salle SA2.22), dès qu'elles seront reliées par le hub réseau. Nous les relèverons avec le même script
+  `infra/inventaire.sh` avant de migrer. En attendant, le cluster partage le portable avec la VM de CI et le
+  registre (ADR-002).
+- **Compatibilité** : Kyverno 1.19 (ADR-004) fonctionne avec Kubernetes **1.33 à 1.35**, d'après
+  [endoflife.date](https://endoflife.date/kyverno). La version la plus récente de k3s (1.36) est donc exclue.
+- **Cohérence avec le sujet** : l'installation du cluster fait elle-même partie de la chaîne. Si nous installions
+  k3s sans vérifier le fichier téléchargé, nous ferions exactement ce que le projet cherche à empêcher.
 
-Faits mesurés :
+Ce que nous avons mesuré :
 
-- **Inventaire** (`laptopdlamort`, 05/11/2026) : `/dev/kvm` présent, 24 drapeaux vmx, libvirt et virt-install
-  installés ; 15 Gi de RAM, donc profil réduit à 3 VM ; 26 Go libres sur `/` mais deux NVMe disponibles ; la plage
-  192.168.100.0/24 est déjà utilisée par `br0` et doit être libérée ou changée avant J2. `kvm-ok` n'a pas pu être
-  lancé sans mot de passe `sudo`.
-- **Spike S1** (création de VM et installation de k3s chronométrées) : pas encore réalisé, prévu avant J2. Ses mesures
-  seront reportées ici.
+- **Inventaire** (`laptopdlamort`, 05/11/2026) : la virtualisation fonctionne (`/dev/kvm` présent, 24 drapeaux vmx,
+  libvirt et virt-install installés) ; 15 Gi de RAM, donc 3 VM au maximum ; 26 Go libres sur `/`, mais deux disques
+  NVMe disponibles ; la plage d'adresses 192.168.100.0/24 est déjà utilisée par `br0` et doit être libérée ou
+  changée avant J2. `kvm-ok` n'a pas pu être lancé sans mot de passe `sudo`.
+- **Spike S1** (créer une VM et installer k3s, en mesurant le temps) : pas encore fait, prévu avant J2. Les résultats
+  seront ajoutés ici.
 
 ## Critères
 
 | Critère | Poids (1 à 3) | Pourquoi |
 | --- | --- | --- |
-| Durée et fiabilité de la reconstruction | 3 | jalons J2 et J5, peu de créneaux |
+| Temps et fiabilité de la reconstruction | 3 | jalons J2 et reproductibilité (5/02), peu de créneaux |
 | Compatibilité avec Kyverno 1.19 | 3 | sans elle, pas de J3 |
-| Consommation de RAM et de disque | 2 | une seule machine partagée avec la CI et le registre |
-| Idempotence et simplicité des scripts | 2 | relecture croisée, reconstruction par l'autre membre |
-| Surface d'attaque, durcissement possible | 2 | sujet de sécurité |
-| Proximité avec une production standard | 1 | utile pour le rapport, non exigé |
+| RAM et disque utilisés | 2 | une seule machine, partagée avec la CI et le registre |
+| Scripts simples et relançables sans risque | 2 | l'autre membre doit pouvoir les relire et les relancer |
+| Surface d'attaque, possibilité de durcir | 2 | c'est un sujet de sécurité |
+| Proche d'une vraie production | 1 | utile pour le rapport, pas obligatoire |
+
+Poids 3 = indispensable ; poids 1 = un plus. « Relançable sans risque » (idempotent) : lancer le script deux fois
+donne le même résultat que le lancer une fois ; il ne recrée pas ce qui existe déjà.
 
 ## Options considérées
 
 ### Option 1 : VM KVM/libvirt + cloud-init + k3s
 
-- Avantages : un seul binaire (API server, kubelet, containerd, flannel inclus) ; installation scriptable et
-  idempotente ; version figée ; binaire vérifiable par somme SHA-256 publiée avec chaque release ; faible empreinte
-  mémoire ; les VM démontrent le provisioning.
-- Limites : composants installés par défaut (Traefik, ServiceLB) à désactiver ; base de données SQLite intégrée en
-  mode serveur unique, donc pas de haute disponibilité du plan de contrôle ; moins « standard » que kubeadm.
+- Avantages : k3s est un seul programme qui contient tout (serveur d'API, kubelet, containerd, réseau flannel) ;
+  installation facile à écrire en script et à relancer ; version figée ; fichier vérifiable grâce à la somme SHA-256
+  publiée avec chaque version ; consomme peu de mémoire ; les VM montrent que nous savons créer l'infrastructure.
+- Limites : des composants installés par défaut (Traefik, ServiceLB) sont à désactiver ; un seul serveur avec une
+  base SQLite, donc si ce serveur tombe, le cluster tombe ; moins « standard » que kubeadm.
 
 ### Option 2 : VM KVM/libvirt + cloud-init + kubeadm
 
-- Avantages : distribution de référence, très proche d'une production ; chaque brique (runtime, CNI, etcd) est explicite.
-- Limites : beaucoup plus d'étapes (containerd, CNI, certificats, jonction des nœuds), donc des scripts plus longs à
-  écrire, relire et reconstruire ; RAM plus élevée (etcd) ; risque fort de manquer J2 vu les créneaux.
+- Avantages : c'est l'outil officiel, très proche de ce qu'on trouve en entreprise ; chaque brique (containerd,
+  réseau, etcd) est installée séparément, donc bien visible.
+- Limites : beaucoup plus d'étapes (containerd, réseau, certificats, ajout des nœuds), donc des scripts plus longs à
+  écrire, relire et relancer ; plus de RAM (etcd) ; fort risque de rater J2 avec si peu de créneaux.
 
 ### Option 3 : OpenStack all-in-one + kubeadm
 
-- Avantages : pertinent seulement si l'infrastructure fournie était déjà sous OpenStack.
-- Limites : très lourd à déployer, hors du périmètre du sujet 7 ; aucune valeur ajoutée pour la sécurité de la chaîne CI/CD.
+- Avantages : utile seulement si notre infrastructure était déjà sous OpenStack.
+- Limites : très lourd à installer, hors du sujet 7 ; n'apporte rien à la sécurité de la chaîne CI/CD.
 
 ### Option 4 : k3d ou kind (nœuds Kubernetes dans des conteneurs)
 
-- Avantages : cluster en une minute, idéal pour les essais et les spikes.
-- Limites : ne démontre pas le provisioning d'une infrastructure ; nœuds partageant le noyau et le démon Docker de l'hôte ;
-  insuffisant pour le rendu.
+- Avantages : un cluster en une minute, parfait pour les essais rapides.
+- Limites : ne montre pas que nous savons créer une infrastructure ; les nœuds partagent le noyau et Docker de la
+  machine ; pas suffisant pour le rendu final.
 
 ## Comparaison
 
 | Critère (poids) | Option 1 : k3s sur VM | Option 2 : kubeadm sur VM | Option 3 : OpenStack | Option 4 : k3d/kind |
 | --- | --- | --- | --- | --- |
-| Reconstruction (3) | ++ un binaire, une commande par nœud | − nombreuses étapes | −− | ++ |
+| Reconstruction (3) | ++ un programme, une commande par nœud | − beaucoup d'étapes | −− | ++ |
 | Compatibilité Kyverno 1.19 (3) | ++ version 1.35 disponible | ++ | + | ++ |
 | RAM / disque (2) | ++ | − | −− | ++ |
-| Idempotence (2) | + | − | − | ++ |
+| Scripts relançables (2) | + | − | − | ++ |
 | Surface d'attaque (2) | + composants désactivables | + | − | − noyau partagé |
-| Proximité production (1) | + | ++ | + | −− |
+| Proche de la production (1) | + | ++ | + | −− |
 
 ## Décision
 
-Nous retenons l'**option 1 : VM KVM/libvirt provisionnées par cloud-init, et k3s `v1.35.9+k3s1`** (Kubernetes 1.35.9,
-dernière version de la ligne 1.35 au 05/11/2026, publiée le 30/09/2026 d'après les
+Nous choisissons l'**option 1 : des VM KVM/libvirt configurées par cloud-init, avec k3s `v1.35.9+k3s1`**
+(Kubernetes 1.35.9, dernière version de la ligne 1.35 au 05/11/2026, sortie le 30/09/2026 d'après les
 [notes de version k3s](https://docs.k3s.io/release-notes/v1.35.X)).
 
-Elle est la seule à satisfaire à la fois les deux critères de poids 3 : reconstruction rapide et compatibilité avec
-Kyverno 1.19. kubeadm apporterait un cluster plus standard, mais au prix d'un temps d'installation que le calendrier ne
-permet pas avant J2.
+C'est la seule option qui réussit les deux critères les plus importants (poids 3) : une reconstruction rapide et la
+compatibilité avec Kyverno 1.19. kubeadm donnerait un cluster plus standard, mais il prendrait trop de temps à
+installer avant J2. k3d/kind est aussi rapide, mais ne montre pas la création d'une vraie infrastructure.
 
-Détails de la décision :
+En détail :
 
-1. **Topologie** : 1 serveur k3s (`s7-cp`) et 1 agent (`s7-w1`) ; un second agent (`s7-w2`) seulement si la RAM le
-   permet. Dimensionnement et adressage : [architecture, section 4](../architecture.md#4-infrastructure).
-2. **Provisioning** : script bash + `virt-install` + image cloud Ubuntu 24.04 + disque de configuration cloud-init
-   (`cloud-localds`). OpenTofu (fournisseur libvirt) est écarté : il ajoute une dépendance et un fichier d'état pour
-   seulement 3 à 4 VM. Chaque étape vérifie l'état avant d'agir (`virsh dominfo`, présence de k3s), pour que
-   `make infra` et `make cluster` soient idempotents.
-3. **Installation vérifiée** : le binaire k3s est téléchargé depuis la release GitHub et contrôlé par
-   `sha256sum-amd64.txt` ; le script d'installation officiel est versionné dans le dépôt avec sa somme SHA-256 et lancé
-   avec `INSTALL_K3S_SKIP_DOWNLOAD=true`. Aucun `curl | sh` depuis `get.k3s.io` au moment de l'installation. L'image
-   cloud Ubuntu est prise dans un répertoire daté (pas `current`) et contrôlée par `SHA256SUMS`.
-4. **Composants** : `--disable=traefik` et `--disable=servicelb` (l'application témoin est exposée par `NodePort` ou
-   `kubectl port-forward` : un ingress et un répartiteur ne servent pas la démonstration et élargissent la surface
-   d'attaque). On conserve CoreDNS, `local-path-provisioner`, `metrics-server` (nécessaire à `kubectl top` pour la
-   mesure M3) et le contrôleur de NetworkPolicy intégré.
-5. **Durcissement de base (J2)** : `--secrets-encryption` (chiffrement des Secrets au repos),
-   `--write-kubeconfig-mode=0600`, Pod Security Admission sur le namespace `demo` (`enforce=baseline`,
-   `warn=restricted` puis `enforce=restricted` si l'application témoin le permet), chrony sur tous les nœuds.
-6. **Version figée** dans `versions.yaml`. Aucune montée de version pendant le projet sans nouvel ADR : la 1.36 ne
-   sera envisageable que si la version de Kyverno retenue la prend en charge.
+1. **Machines** : 1 serveur k3s (`s7-cp`) et 1 agent (`s7-w1`) ; un deuxième agent (`s7-w2`) seulement s'il reste
+   assez de RAM. Tailles et adresses : [architecture, section 4](../architecture.md#4-infrastructure).
+2. **Création des VM** : un script bash avec `virt-install`, l'image cloud Ubuntu 24.04 et un disque cloud-init
+   (`cloud-localds`). Nous n'utilisons pas OpenTofu : il ajouterait un outil et un fichier d'état pour seulement 3 ou
+   4 VM. Chaque étape vérifie d'abord ce qui existe (`virsh dominfo`, k3s déjà installé ?), pour que `make infra` et
+   `make cluster` puissent être relancés sans risque.
+3. **Installation vérifiée** : le programme k3s est téléchargé depuis la page de la version sur GitHub, puis comparé
+   à `sha256sum-amd64.txt`. Le script d'installation officiel est gardé dans le dépôt avec sa somme SHA-256, et lancé
+   avec `INSTALL_K3S_SKIP_DOWNLOAD=true`. Jamais de `curl | sh` depuis `get.k3s.io`. L'image Ubuntu est prise dans un
+   dossier daté (pas `current`) et vérifiée avec `SHA256SUMS`.
+4. **Composants** : `--disable=traefik` et `--disable=servicelb`. L'application de test est accessible par
+   `NodePort` ou `kubectl port-forward` ; un ingress et un répartiteur de charge ne servent pas la démonstration et
+   ajoutent des points d'attaque. Nous gardons CoreDNS, `local-path-provisioner`, `metrics-server` (pour
+   `kubectl top`, utile à la mesure M3) et la gestion des NetworkPolicy intégrée.
+5. **Sécurité de base (J2)** : `--secrets-encryption` (les Secrets sont chiffrés sur le disque),
+   `--write-kubeconfig-mode=0600` (fichier d'accès lisible seulement par son propriétaire), Pod Security Admission
+   sur le namespace `demo` (`enforce=baseline`, `warn=restricted`, puis `enforce=restricted` si l'application de test
+   le permet), chrony (heure synchronisée) sur tous les nœuds.
+6. **Version figée** dans `versions.yaml`. Pas de changement de version pendant le projet sans nouvel ADR : la 1.36
+   ne sera possible que si notre version de Kyverno la prend en charge.
 
 ## Conséquences
 
-- **Ce que l'on gagne** : un cluster reconstructible en quelques commandes, compatible avec Kyverno 1.19, dont
-  l'installation applique déjà les principes du sujet (version figée, sommes de contrôle, pas de script distant exécuté
-  à l'aveugle).
-- **Ce que l'on perd** : pas de haute disponibilité du plan de contrôle (serveur unique, SQLite) ; pas de LoadBalancer
-  (services en `pending` si on en crée un) ; une distribution légère plutôt que kubeadm, à assumer devant le jury.
+- **Ce que l'on gagne** : un cluster que l'on recrée en quelques commandes, compatible avec Kyverno 1.19, et dont
+  l'installation respecte déjà les règles du sujet (version figée, fichiers vérifiés, pas de script distant lancé à
+  l'aveugle).
+- **Ce que l'on perd** : pas de secours si le serveur tombe (un seul serveur, base SQLite) ; pas de LoadBalancer (un
+  service de ce type resterait en `pending`) ; une version légère de Kubernetes plutôt que kubeadm, à défendre
+  devant le jury.
 - **Ce qu'il faudra surveiller** :
-  - la MTU : flannel en VXLAN ajoute 50 octets d'en-tête, d'où une MTU de 1450 dans les pods si l'interface est à 1500 ;
-    une MTU plus faible sur le réseau du labo bloque les téléchargements TLS ;
-  - l'absence de chevauchement entre le réseau des VM (192.168.100.0/24), les pods (10.42.0.0/16), les services
-    (10.43.0.0/16) et le réseau du labo ;
-  - l'horloge des VM (certificats) ;
-  - la sauvegarde : avec SQLite, pas d'instantané etcd ; on s'appuie sur la reconstruction par script et sur les
-    instantanés de VM (`virsh snapshot-create-as`) avant le 18/12.
+  - la MTU (taille maximale d'un paquet réseau) : flannel ajoute 50 octets d'en-tête, donc la MTU dans les pods est
+    de 1450 si celle de la carte réseau est de 1500. Une MTU trop basse sur le réseau bloque les téléchargements en
+    TLS ;
+  - les plages d'adresses ne doivent pas se chevaucher : VM (192.168.100.0/24), pods (10.42.0.0/16), services
+    (10.43.0.0/16) et réseau de l'université ;
+  - l'heure des VM (sinon les certificats sont refusés) ;
+  - la sauvegarde : avec SQLite, pas de sauvegarde etcd ; nous comptons sur la reconstruction par script et sur des
+    instantanés des VM (`virsh snapshot-create-as`) avant le 18/12 ;
+  - la migration vers les machines de l'université : refaire l'inventaire et vérifier que les plages d'adresses ne
+    gênent pas le réseau de la salle.
 
 ## Plan B
 
-| Signal observable | Action | Coût |
+| Signe d'alerte | Ce que l'on fait | Ce que ça coûte |
 | --- | --- | --- |
-| `kvm-ok` échoue ou `/dev/kvm` absent sur les machines du labo | k3s installé directement sur les hôtes (serveur sur l'un, agent sur l'autre), mêmes version et options | on perd la démonstration du provisioning des VM ; scripts `infra/` réduits à l'installation de k3s |
-| Cluster instable (nœuds `NotReady`, réseau des pods cassé) après une séance de travail sur le chemin critique | k3d (k3s dans Docker) avec la même version, pour avancer sur J3 pendant le diagnostic | démonstration moins réaliste ; à documenter au journal |
-| RAM insuffisante pour 3 VM | une seule VM k3s (serveur qui exécute aussi les pods) + la VM `s7-forge` | plus de démonstration multi-nœuds |
+| Les machines de l'université ne sont pas prêtes (hub, réseau, accès) avant J2 | on reste sur le portable de l'étudiant B, mêmes scripts ; migration plus tard, notée au journal | toujours une seule machine, peu de RAM |
+| `kvm-ok` échoue ou `/dev/kvm` est absent sur les machines utilisées | k3s installé directement sur les machines (serveur sur l'une, agent sur l'autre), même version et mêmes options | on ne montre plus la création des VM ; les scripts `infra/` se limitent à l'installation de k3s |
+| Cluster instable (nœuds `NotReady`, réseau des pods cassé) après une séance entière sur ce problème | k3d (k3s dans Docker), même version, pour continuer J3 pendant qu'on cherche la cause | démonstration moins réaliste ; à noter au journal |
+| Pas assez de RAM pour 3 VM | une seule VM k3s (le serveur fait aussi tourner les pods) + la VM `s7-forge` | plus de démonstration avec plusieurs nœuds |
 
 ## Questions que pourrait poser le jury
 
-- *Pourquoi k3s plutôt que kubeadm ?* Le temps de reconstruction (J2, J5) et la compatibilité avec Kyverno 1.19
-  priment ; kubeadm est plus standard mais demande bien plus d'étapes.
-- *Pourquoi pas la dernière version de Kubernetes ?* Kyverno 1.19 prend en charge Kubernetes 1.33 à 1.35.
-- *Que perdez-vous en désactivant Traefik ?* Un ingress HTTP ; inutile pour la démonstration, et un composant exposé
-  en moins.
-- *Comment `make cluster` reste-t-il idempotent ?* Chaque étape teste l'état existant avant d'agir ; relancer la cible
-  ne recrée rien de ce qui existe déjà.
-- *Comment savez-vous que le binaire k3s n'a pas été modifié ?* Sa somme SHA-256 est comparée à celle de la release
-  avant l'installation.
+- *Pourquoi k3s plutôt que kubeadm ?* Le temps de reconstruction (J2, reproductibilité) et la compatibilité avec
+  Kyverno 1.19 comptent le plus ; kubeadm est plus standard mais demande beaucoup plus d'étapes.
+- *Pourquoi pas la dernière version de Kubernetes ?* Kyverno 1.19 fonctionne avec Kubernetes 1.33 à 1.35 seulement.
+- *Que perdez-vous en désactivant Traefik ?* Un point d'entrée HTTP ; inutile pour la démonstration, et un composant
+  exposé en moins.
+- *Comment `make cluster` peut-il être relancé sans risque ?* Chaque étape regarde d'abord ce qui existe ; relancer
+  la commande ne recrée rien de ce qui est déjà là.
+- *Comment savez-vous que le programme k3s n'a pas été modifié ?* Nous comparons sa somme SHA-256 avec celle publiée
+  sur la page de la version, avant de l'installer.
+- *Pourquoi commencer sur un portable personnel ?* Les machines de l'université ne sont pas encore reliées ; les
+  scripts sont les mêmes, donc la migration ne demande que de relancer `make socle` sur les nouvelles machines.
