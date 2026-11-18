@@ -4,7 +4,7 @@
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
-PKGS=(qemu-kvm libvirt-daemon-system libvirt-clients virtinst cloud-image-utils gpgv openssl curl python3 ubuntu-keyring)
+PKGS=(qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients virtinst cloud-image-utils gpgv openssl curl python3)
 missing=()
 for p in "${PKGS[@]}"; do
   dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "install ok installed" || missing+=("$p")

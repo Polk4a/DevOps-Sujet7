@@ -43,6 +43,6 @@ ok "certificat du registre valide jusqu'au $(openssl x509 -in "$CA_DIR/registry.
 umask 022
 mkdir -p "$S7_ROOT/security/ca"
 if ! cmp -s "$CA_DIR/ca.crt" "$S7_ROOT/security/ca/ca.crt"; then
-  install -m 0644 "$CA_DIR/ca.crt" "$S7_ROOT/security/ca/ca.crt"
+  cp "$CA_DIR/ca.crt" "$S7_ROOT/security/ca/ca.crt"; chmod 0644 "$S7_ROOT/security/ca/ca.crt" 2>/dev/null || true
   warn "security/ca/ca.crt mis à jour : à commiter (certificat public uniquement)"
 fi
