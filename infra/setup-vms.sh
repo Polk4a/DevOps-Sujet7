@@ -54,7 +54,7 @@ net_xml() {
   echo "      <range start='${S7_SUBNET}.100' end='${S7_SUBNET}.199'/>"
   while IFS='|' read -r name _ _ _ last mac; do
     echo "      <host mac='$mac' name='$name' ip='${S7_SUBNET}.$last'/>"
-  done < <(vm_list; printf '%s\n' "s7-w2|0|0|0|22|52:54:00:57:00:22")
+  done < <(vm_list; [[ "${S7_WITH_W2:-0}" == 1 ]] || printf '%s\n' "s7-w2|0|0|0|22|52:54:00:57:00:22")
   echo "    </dhcp>"
   echo "  </ip>"
   echo "</network>"
