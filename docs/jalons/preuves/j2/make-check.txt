@@ -1,0 +1,20 @@
+--- regles de J1
+ok         structure du depot
+ok         aucun marqueur restant
+ok         23 risques documentes
+ok         versions.yaml sans version flottante
+ok         aucune cle privee detectee
+ATTENTION  gitleaks absent : installez-le et relancez (scan de secrets non effectue)
+--- regles de J2
+ok         fichiers du socle presents
+ok         checklist J2 remplie
+ok         image de base epinglee par digest (docker.io/library/python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90)
+ok         infra/k3s/install.sh conforme a sa somme
+ok         dependances Python installees par hash
+ok         actions GitHub epinglees par SHA complet
+ok         aucun workflow de PR sur s7-forge
+ok         aucun tag :latest
+ok         shellcheck : aucun avertissement
+ok         dernier rapport de verification sans echec (docs/jalons/preuves/j2/verify-20261118-2047.txt)
+
+J2 : controle automatique OK (il ne remplace pas la relecture croisee)
