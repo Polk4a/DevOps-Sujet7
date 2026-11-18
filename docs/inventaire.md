@@ -19,8 +19,21 @@ ADR. Ces conséquences sont à relire : un code HTTP 403 peut venir d'un proxy d
 
 ## Synthèse et décisions
 
-Une seule machine pour l'instant : `laptopdlamort` (portable de l'étudiant B, relevé du 05/11/2026). Si une autre
-machine est utilisée (poste de l'étudiant A, machine du labo), y relancer le script et ajouter sa section.
+Deux machines relevées. Si une autre machine est utilisée, y relancer le script et ajouter sa section.
+
+**`debian222` (relevé du 18/11/2026) : machine retenue pour le socle J2** (`make socle`), à laquelle on se connecte
+en SSH.
+
+- **Virtualisation** : `/dev/kvm` présent, 56 drapeaux vmx, libvirtd actif, virsh, virt-install et qemu installés :
+  option 1 de l'ADR-001.
+- **Dimensionnement** : 31 Gi de RAM (29 Gi libres) et 238 Go libres sur `/`. Le profil réduit (10 Go pour 3 VM)
+  tient largement ; le profil recommandé (4 Go par VM, avec `s7-w2`) est possible via `infra/config.local.env`.
+- **Accès sortant** : aucun proxy, tous les services répondent ; aucun miroir nécessaire.
+- **Réseau** : 192.168.100.0/24, 10.42/16 et 10.43/16 sont libres. Le LAN est en 172.19.0.0/16 (sur `br0`), sans
+  conflit. MTU de 1500 sur `br0` ; MTU du chemin non mesurable (ICMP bloqué), contrôlée par `make cluster` et
+  `make verify` (téléchargements TLS depuis les nœuds et les pods).
+
+**`laptopdlamort` (relevé du 05/11/2026)** : portable de l'étudiant B, utilisé pour J1 et pour préparer J2.
 
 - **Virtualisation** : `/dev/kvm` présent, 24 drapeaux vmx, virsh, virt-install et qemu installés : option 1 de
   l'ADR-001 (VM KVM + k3s). `libvirtd` est inactif (`sudo systemctl enable --now libvirtd`) et `kvm-ok` reste à
@@ -96,3 +109,58 @@ Un code HTTP quelconque signifie que le serveur a repondu ; 000 signifie bloque 
 
 <!-- Releve brut de infra/inventaire.sh. Seule correction : la ligne libvirtd, ecrite sur deux lignes par un defaut
      du script ("inactive" puis "inactif"), corrige depuis dans infra/inventaire.sh. -->
+
+## Machine debian (releve du 2026-11-18 19:05 CET)
+
+| Element | Valeur |
+| --- | --- |
+| OS / noyau | Debian GNU/Linux 13 (trixie) / 6.12.107+deb13-amd64 |
+| CPU | Intel(R) Core(TM) i7-14700 (28 coeurs logiques) |
+| Drapeaux vmx/svm | 56 |
+| /dev/kvm | oui |
+| kvm-ok | kvm-ok absent (sudo apt-get install -y cpu-checker) |
+| RAM | 31Gi (disponible 29Gi) |
+| Disque / | 444G (libre 238G) |
+| Disques | nvme0n1 953,9G SSD;  |
+| virsh / virt-install / qemu | oui / oui / oui |
+| docker / podman | oui / non |
+| libvirtd | active |
+| sudo sans mot de passe | oui |
+| IPv4 | br0 172.19.20.15/16;docker0 172.17.0.1/16;br-ec6eb20c82f5 172.18.0.1/16;virbr0 192.168.122.1/24;tailscale0 100.110.220.79/32 |
+| Passerelle | 172.19.0.1 via br0 |
+| DNS | 8.8.8.8,1.1.1.1 |
+| Proxy (variables) | aucun |
+| MTU interface (br0) | 1500 |
+| MTU du chemin vers Internet | non mesurable (ICMP bloque) |
+| Routes deja presentes sur 192.168.100/24, 10.42/16, 10.43/16 | aucune |
+
+### Acces sortant depuis debian
+
+Un code HTTP quelconque signifie que le serveur a repondu ; 000 signifie bloque ou injoignable.
+
+| Destination | Code HTTP | Joignable |
+| --- | --- | --- |
+| https://github.com | 200 | oui |
+| https://api.github.com | 200 | oui |
+| https://objects.githubusercontent.com | 404 | oui |
+| https://ghcr.io/v2/ | 401 | oui |
+| https://registry-1.docker.io/v2/ | 401 | oui |
+| https://registry.k8s.io/v2/ | 401 | oui |
+| https://quay.io/v2/ | 401 | oui |
+| https://get.k3s.io | 200 | oui |
+| https://kyverno.github.io/kyverno/index.yaml | 200 | oui |
+| https://cloud-images.ubuntu.com | 200 | oui |
+| https://pypi.org | 200 | oui |
+| https://rekor.sigstore.dev | 200 | oui |
+| https://fulcio.sigstore.dev | 404 | oui |
+| https://tuf-repo-cdn.sigstore.dev | 200 | oui |
+| https://mirror.gcr.io/v2/ | 401 | oui |
+
+### Consequences deduites automatiquement (a relire)
+
+- Virtualisation materielle presente : option 1 de l'ADR-001 (VM KVM + k3s) applicable.
+- RAM >= 18 Go : profil recommande (3 VM, voire 4).
+- GitHub joignable : binaire k3s telechargeable, runner GitHub Actions envisageable (ADR-002).
+- Depot Helm de Kyverno joignable : installation du chart 3.9.2 possible.
+- Sigstore joignable : signature sans cle envisageable en extension (ADR-003).
+

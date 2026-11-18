@@ -67,6 +67,7 @@ Relevé complet dans [docs/inventaire.md](inventaire.md).
 
 | Machine | CPU | RAM | Disque | KVM |
 | --- | --- | --- | --- | --- |
+| `debian222` (machine du socle J2, Debian 13 trixie, noyau 6.12) | Intel(R) Core(TM) i7-14700, 28 cœurs logiques | 31 Gi (29 Gi disponibles au relevé) | `/` : 444 Go (238 Go libres) ; NVMe 954 Go | oui (`/dev/kvm`, 56 drapeaux vmx) |
 | `laptopdlamort` (portable de l'étudiant B, Ubuntu 24.04.5, noyau 7.0) | i5-12450H, 12 cœurs logiques | 15 Gi (4,7 Gi disponibles au relevé) | `/` : 140 Go (26 Go libres) ; NVMe 3,6 To et 954 Go | oui (`/dev/kvm`, 24 drapeaux vmx) |
 
 ### 4.2 Machines virtuelles
