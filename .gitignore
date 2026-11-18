@@ -30,3 +30,6 @@ __pycache__/
 # Sorties locales de la CI (archives OCI, SBOM et resultats de scan des essais)
 build/
 .trivy-cache/
+
+# Surcharges locales de la configuration du socle (plage d adresses, disque des VM)
+infra/config.local.env

@@ -1,0 +1,3 @@
+# Dependances d execution. Regenerer avec : make deps (uv pip compile, hashes, delai de 7 jours)
+fastapi
+uvicorn

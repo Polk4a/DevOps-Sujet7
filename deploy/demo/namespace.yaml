@@ -1,0 +1,12 @@
+# Namespace de l'application témoin. Pod Security Admission au niveau « restricted » (architecture 4.5) :
+# non-root, sans élévation de privilèges, capacités retirées, seccomp RuntimeDefault.
+# En J3, Kyverno n'admettra ici que des images signées de registry.s7.internal/s7/ (ADR-004).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

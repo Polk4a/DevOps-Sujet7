@@ -4,7 +4,7 @@
 
 | | Étudiant A | Étudiant B |
 | --- | --- | --- |
-| Nom | Mohammmed HLILOU | Niels LOPEZ |
+| Nom | Mohamed HLILOU | Niels LOPEZ |
 | Pilote | Infrastructure, Kubernetes, Kyverno : VM, k3s, durcissement, politiques d'admission (ADR-001, ADR-004 ; spikes S1, S4) | Forge et CI, registre, supply chain : runner, registre Zot, CA privée, application témoin, Syft, Trivy, Cosign, SLSA (ADR-002, ADR-003 ; spikes S2, S3, S5) |
 | Suppléant sur | la brique de B : relit ses workflows et scripts en PR, sait la reconstruire en J5 | la brique de A : relit ses scripts, manifestes et politiques en PR, sait la reconstruire en J5 |
 
