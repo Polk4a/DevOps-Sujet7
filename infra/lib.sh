@@ -27,6 +27,7 @@ mkdir -p "$S7_CACHE" "$S7_BIN"
 mkdir -p "$S7_SECRETS" && chmod 0700 "$S7_SECRETS"
 export PATH="$S7_BIN:$PATH"
 export LIBVIRT_DEFAULT_URI="qemu:///system"
+export LC_ALL=C.UTF-8   # sorties des outils en anglais (virsh domstate = running), quelle que soit la langue du système
 
 # --- Affichage -------------------------------------------------------------------------------------------------
 log()  { printf '\033[1;34m[s7]\033[0m %s\n' "$*" >&2; }

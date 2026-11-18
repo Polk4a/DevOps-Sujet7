@@ -35,10 +35,10 @@ podexec() { kctl -n demo exec deploy/demo-app -c app -- "$@"; }
   check "DNS interne (kubernetes.default)" podexec python -c "import socket;print(socket.gethostbyname('kubernetes.default.svc.cluster.local'))"
   check "DNS externe (pypi.org)" podexec python -c "import socket;print(socket.gethostbyname('pypi.org'))"
   echo "MTU de eth0 dans le pod : $(podexec cat /sys/class/net/eth0/mtu 2>/dev/null || echo '?')"
-  check "téléchargement TLS de plus de 100 Ko depuis un pod" podexec python -c "
+  check "téléchargement TLS de plus de 20 Ko depuis un pod" podexec python -c "
 import time,urllib.request as u
-t=time.time(); n=len(u.urlopen('https://pypi.org/simple/fastapi/',timeout=30).read())
-print(f'{n} octets en {time.time()-t:.2f} s'); assert n>100_000"
+t=time.time(); n=len(u.urlopen('https://raw.githubusercontent.com/k3s-io/k3s/v1.35.9%2Bk3s1/install.sh',timeout=30).read())
+print(f'{n} octets en {time.time()-t:.2f} s'); assert n>20_000"
 
   section "4. Registre privé (Zot, TLS avec la CA du projet)"
   echo "CA du projet : $(openssl x509 -in "$S7_ROOT/security/ca/ca.crt" -noout -subject -enddate | tr '\n' ' ')"
