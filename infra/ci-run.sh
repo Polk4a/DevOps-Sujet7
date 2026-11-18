@@ -18,5 +18,7 @@ done
 [[ -n "$run_id" ]] || die "exécution du workflow introuvable"
 log "exécution $run_id : https://github.com/$REPO/actions/runs/$run_id"
 gh run watch "$run_id" --repo "$REPO" --exit-status --interval 10 >/dev/null || die "la CI a échoué : gh run view $run_id --log-failed"
-ok "CI réussie : image registry.s7.internal/s7/demo-app:$(gh run view "$run_id" --repo "$REPO" --json headSha --jq .headSha)"
+sha="$(gh run view "$run_id" --repo "$REPO" --json headSha --jq .headSha)"
+echo "$sha" > "$S7_STATE_DIR/last-ci-sha"   # lu par make deploy (la liste des runs de GitHub peut être en retard)
+ok "CI réussie : image registry.s7.internal/s7/demo-app:$sha"
 step_end
