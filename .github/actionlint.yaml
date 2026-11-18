@@ -1,0 +1,4 @@
+# Configuration de actionlint (lint des workflows)
+self-hosted-runner:
+  labels:
+    - s7-forge

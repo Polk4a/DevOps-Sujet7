@@ -1,0 +1,26 @@
+# Pull requests : tests et build sur un runner HÉBERGÉ par GitHub, sans secret, sans push.
+# Le code proposé dans une PR ne s'exécute jamais sur s7-forge (ADR-002, règle 1).
+name: pr
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: tests et build (runner hébergé)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (action épinglée par SHA)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tests unitaires (étape test du Dockerfile)
+        run: docker buildx build --target test app
+
+      - name: Build de l'image (non poussée)
+        run: docker buildx build --target runtime --build-arg GIT_SHA="$GITHUB_SHA" -t demo-app:pr app

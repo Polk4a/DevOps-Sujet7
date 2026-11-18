@@ -1,0 +1,15 @@
+# BuildKit autonome (ADR-002) : construit les images de la CI sans démon Docker.
+# Le socket n'est accessible qu'au groupe buildkit (utilisateur runner).
+[Unit]
+Description=BuildKit daemon (Sujet 7)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/buildkitd --config /etc/buildkit/buildkitd.toml --group buildkit
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

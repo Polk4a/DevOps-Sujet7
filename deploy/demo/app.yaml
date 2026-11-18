@@ -1,0 +1,90 @@
+# Application témoin. IMAGE_REF est remplacé par infra/deploy.sh par une référence PAR DIGEST
+# (registry.s7.internal/s7/demo-app@sha256:...), jamais par un tag modifiable.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demo-app
+  namespace: demo
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: demo-app
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: demo-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: demo-app
+      annotations:
+        s7.insa/git-sha: "GIT_SHA"
+    spec:
+      serviceAccountName: demo-app
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: IMAGE_REF
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: demo
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: demo-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

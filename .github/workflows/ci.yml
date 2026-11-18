@@ -1,0 +1,80 @@
+# CI principale (J2) : à chaque push sur main, tests puis image construite par BuildKit sur le runner s7-forge,
+# taguée avec le SHA du commit (jamais :latest) et poussée dans le registre privé.
+# J3 ajoutera, entre le build et le push : SBOM (Syft), scan bloquant (Trivy), puis signature (Cosign).
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["j*"]
+    paths:
+      - "app/**"
+      - ".github/workflows/ci.yml"
+      - "infra/forge/check-tools.sh"
+      - "versions.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-push:
+    name: build et push (s7-forge)
+    # Jamais déclenché par une pull request : le code d'un fork ne s'exécute pas sur la forge (ADR-002)
+    runs-on: [self-hosted, linux, x64, s7-forge]
+    environment: signing
+    timeout-minutes: 30
+    env:
+      IMAGE: registry.s7.internal/s7/demo-app
+      BUILDKIT_HOST: unix:///run/buildkit/buildkitd.sock
+    steps:
+      - name: Checkout (action épinglée par SHA)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Outils de la forge conformes à versions.yaml
+        run: bash infra/forge/check-tools.sh
+
+      - name: Tests unitaires (étape test du Dockerfile)
+        run: |
+          buildctl build --frontend dockerfile.v0 \
+            --local context=app --local dockerfile=app --opt target=test
+
+      - name: Build de l'image (archive OCI locale, rien n'est encore poussé)
+        run: |
+          rm -rf build && mkdir -p build
+          buildctl build --frontend dockerfile.v0 \
+            --local context=app --local dockerfile=app \
+            --opt target=runtime \
+            --opt build-arg:GIT_SHA="$GITHUB_SHA" \
+            --opt label:org.opencontainers.image.revision="$GITHUB_SHA" \
+            --opt label:org.opencontainers.image.source="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --output type=oci,dest=build/oci,tar=false
+
+      - name: Push dans le registre, tag = SHA du commit
+        id: push
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/docker"
+          printf '%s' "$REGISTRY_PASSWORD" | crane auth login registry.s7.internal -u ci --password-stdin
+          crane push build/oci "$IMAGE:$GITHUB_SHA"
+          digest="$(crane digest "$IMAGE:$GITHUB_SHA")"
+          crane auth logout registry.s7.internal
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Image publiée"
+            echo
+            echo "- tag : \`$IMAGE:$GITHUB_SHA\`"
+            echo "- digest : \`$IMAGE@$digest\`"
+            echo "- type de manifeste : \`$(crane manifest "$IMAGE@$digest" | jq -r .mediaType)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Nettoyage
+        if: always()
+        run: rm -rf build "$RUNNER_TEMP/docker"

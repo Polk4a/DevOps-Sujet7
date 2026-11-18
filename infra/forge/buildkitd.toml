@@ -1,0 +1,18 @@
+# Configuration de buildkitd sur s7-forge (ADR-002)
+[grpc]
+  address = ["unix:///run/buildkit/buildkitd.sock"]
+
+[worker.oci]
+  enabled = true
+  binary = "buildkit-runc"
+  gc = true
+  # Cache de build limité : la forge n'a que 60 Go
+  gckeepstorage = "10GB"
+
+[worker.containerd]
+  enabled = false
+
+# Le registre du projet est approuvé via le magasin du système (CA installée par cloud-init) ;
+# déclaration explicite pour ne pas en dépendre.
+[registry."registry.s7.internal"]
+  ca = ["/etc/ssl/certs/ca-certificates.crt"]
