@@ -127,7 +127,7 @@ obtient `x509: certificate signed by unknown authority` :
 3. **le contrôleur d'admission Kyverno**, qui interroge le registre pour lire signatures et attestations, par la
    valeur Helm `admissionController.caCertificates.data`.
 
-### 4.5 Durcissement du cluster (prévu en J2)
+### 4.5 Durcissement du cluster (en place depuis J2)
 
 - Binaire k3s et script d'installation vérifiés par SHA-256, version figée (ADR-001).
 - Traefik et ServiceLB désactivés ; aucun service exposé hors NodePort de l'application témoin.
@@ -145,8 +145,8 @@ obtient `x509: certificate signed by unknown authority` :
    `persist-credentials: false`. *Preuve* : journal du job, SHA du commit.
 2. **Outils.** Le job installe (ou reprend du cache de la forge) Syft, Trivy, Cosign et crane aux versions de
    `versions.yaml` et contrôle leur SHA-256. *Échec* : somme différente, job arrêté (R9).
-3. **Construction.** `docker buildx build` produit une archive OCI locale (`--output type=oci`) depuis une image de
-   base épinglée par digest. Rien n'est encore dans le registre. *Échec* : job rouge.
+3. **Construction.** BuildKit (`buildctl`, sans démon Docker) exécute d'abord l'étape `test` du Dockerfile (tests
+   unitaires), puis produit une archive OCI locale (`--output type=oci`) depuis une image de base épinglée par digest. Rien n'est encore dans le registre. *Échec* : job rouge.
 4. **SBOM.** Syft génère un SBOM CycloneDX JSON de cette archive. *Preuve* : fichier conservé comme artefact du job.
 5. **Scan bloquant.** Trivy analyse l'archive (`--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`), avec la
    base en cache sur la forge, et produit aussi le résultat au format `cosign-vuln`. *Échec* : job arrêté **avant**

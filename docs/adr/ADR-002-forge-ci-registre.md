@@ -1,6 +1,6 @@
 # ADR-002 : Forge, CI et registre de conteneurs
 
-- **Date** : 2026-11-05
+- **Date** : 2026-11-05 (mise à jour le 2026-11-18 : construction par BuildKit autonome au lieu de Docker, J2)
 - **Statut** : proposée <!-- passer à « validée » après relecture et approbation de la PR par l'étudiant A -->
 - **Auteur** : Étudiant B — **Relecteur** : Étudiant A
 - **Spikes liés** : [S2](../spikes/S2.md) (registre en TLS avec la CA privée) ; [S3](../spikes/S3.md) (stockage des
@@ -115,13 +115,18 @@ Règles de conception :
    `persist-credentials: false`. Aucune action tierce sans ADR : les outils sont installés depuis `versions.yaml` avec
    vérification SHA-256 (cas `trivy-action`, mars 2026).
 4. **Runner durci** : utilisateur dédié `runner` sans `sudo`, service systemd, un seul dépôt enregistré. Option
-   `--ephemeral` (un job par enregistrement) visée en J4. Le runner est membre du groupe `docker`, ce qui équivaut à
-   être root sur `s7-forge` : c'est un risque assumé (la forge est une VM dédiée, séparée du cluster).
+   `--ephemeral` (un job par enregistrement) visée en J4. **Pas de Docker sur la forge** (décision du 18/11, J2) : les
+   images sont construites par **BuildKit autonome** (`buildkitd` v0.34.2, binaires vérifiés). Le runner n'est membre
+   que du groupe `buildkit`, qui donne accès au socket de `buildkitd` : il peut lancer des builds, mais pas monter
+   le disque de l'hôte ni lancer un conteneur privilégié, comme le permettrait le groupe `docker` (équivalent root).
+   Le cache de build est limité à 10 Go (`gckeepstorage`).
 5. **Registre** :
    - TLS sur 443 avec le certificat de la CA privée (SAN `registry.s7.internal`) ;
    - lecture anonyme : containerd et Kyverno n'ont besoin d'aucun identifiant ;
    - push réservé au compte `ci` (htpasswd bcrypt), dont le mot de passe est dans l'environment `signing` ;
-   - images poussées en types OCI (`docker buildx … --output type=oci`), seuls acceptés par Zot.
+   - images construites en archive OCI locale (`buildctl … --output type=oci`), puis poussées par `crane` : types OCI,
+     seuls acceptés par Zot, et l'objet poussé est exactement celui qui a été construit (et, en J3, scanné) ;
+   - tag = SHA complet du commit (jamais `:latest`) ; le déploiement utilise toujours le digest.
 6. **Versions** figées dans `versions.yaml`, avec un **délai de 7 jours** avant d'adopter une nouvelle version (une
    version compromise est en général retirée en quelques jours). Exception : le runner, que GitHub oblige à mettre à
    jour sous 30 jours.
