@@ -4,7 +4,7 @@ ok         aucun marqueur restant
 ok         23 risques documentes
 ok         versions.yaml sans version flottante
 ok         aucune cle privee detectee
-ATTENTION  gitleaks absent : installez-le et relancez (scan de secrets non effectue)
+ok         gitleaks : rien detecte
 --- regles de J2
 ok         fichiers du socle presents
 ok         checklist J2 remplie
