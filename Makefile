@@ -71,8 +71,8 @@ deps: ## Regenere app/requirements*.txt (hashes, delai de 7 jours) - necessite u
 	uv pip compile requirements-dev.in --python-version 3.13 --python-platform x86_64-manylinux_2_28 \
 	  --generate-hashes --exclude-newer $$cutoff --no-header -o requirements-dev.txt
 
-policies: ## J3 : Kyverno + politiques
-	@echo "A implementer en J3 (security/kyverno/)"; exit 1
+policies: ## J3 : Kyverno v1.19.2 verifie (Helm, chart epingle), CA du projet ; politiques a venir
+	@bash security/kyverno/install.sh
 
 attack: ## J4 : scenarios d'attaques bloquees
 	@echo "A implementer en J4 (security/attacks/)"; exit 1
