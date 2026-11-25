@@ -13,6 +13,8 @@ k3s: "v1.35.9+k3s1"                # Kubernetes 1.35.9, publiée le 2026-09-30 (
 kyverno_app: "v1.19.2"             # publiée le 2026-10-21. Ne pas passer en 1.20 sans ADR : retrait de ClusterPolicy (ADR-004)
 kyverno_chart: "3.9.2"             # chart Helm correspondant à v1.19.2 (charts/kyverno/Chart.yaml du tag v1.19.2)
                                    # NB 2026-11-18 : Kyverno v1.20.0 est sorti ; décision à prendre en J3 (ADR-004)
+helm: "v4.3.2"                     # client Helm pour installer le chart Kyverno (make policies), publiée le 2026-11-13.
+                                   # Helm 4 : la ligne 3 ne reçoit plus de correctifs de sécurité (fin le 2026-11-11)
 
 # --- Étudiant B (relevé le 2026-11-05 sur les releases GitHub officielles) ---
 cosign: "v3.1.4"                   # publiée le 2026-10-20 ; repli (ADR-003) : v2.6.5 (2026-08-06)
@@ -50,3 +52,5 @@ checksums:
   registry_repli: "40df2224d410f72ae425c3371873b078bbdbda3b8b612be9571f0e6751f3acc8" # registry_3.1.2_linux_amd64.tar.gz
   github_runner: "baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40"  # actions-runner-linux-x64-2.338.2.tar.gz
                                    # somme calculée au téléchargement (pas de fichier de sommes) : à recouper avec la page de la release
+  helm: "d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983"           # helm-v4.3.2-linux-amd64.tar.gz (fichier .sha256sum de get.helm.sh)
+  kyverno_chart: "f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e"  # kyverno-3.9.2.tgz (digest de l index du dépôt Helm kyverno.github.io/kyverno)

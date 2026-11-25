@@ -1,0 +1,26 @@
+# Valeurs Helm de Kyverno (chart 3.9.2 = Kyverno v1.19.2), lues par security/kyverno/install.sh (ADR-004).
+# Seules les valeurs que nous changeons ou voulons rendre visibles sont ici ; le reste garde le défaut du chart.
+# La CA du projet n'est pas recopiée ici : install.sh la passe depuis security/ca/ca.crt
+# (--set-file global.caCertificates.data), pour tous les contrôleurs.
+
+admissionController:
+  # ADR-004, règle 6 : 1 réplique en J3 (RAM limitée). Conséquence : pendant un redémarrage du contrôleur,
+  # les politiques en échec fermé refusent les pods de demo. L'effet de 2 répliques est mesuré en J4 (M3).
+  replicas: 1
+
+config:
+  # Namespaces jamais envoyés au webhook : kube-system (composants du cluster), et le namespace de Kyverno
+  # lui-même (excludeKyvernoNamespace). Limite assumée : un pod créé dans ces namespaces n'est pas vérifié (R7).
+  webhooks:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+  excludeKyvernoNamespace: true
+
+test:
+  image:
+    # Le chart prend « latest » par défaut pour les pods de « helm test » : on fige la version.
+    tag: v1.19.2
